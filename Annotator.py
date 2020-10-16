@@ -42,6 +42,7 @@ import tarfile
 
 
 root = "Dulanga/"
+subj_id = 0
 parts = [os.path.join(root,dI) for dI in os.listdir(root) if os.path.isdir(os.path.join(root,dI)) and "Instructor" in dI]
 print(parts)
 
@@ -53,20 +54,21 @@ import pandas as pd
 import numpy as np
 #df = pd.DataFrame(np.random.randn(6,4),columns=list('ABCD'))
 # Show in Jupyter
-#df = pd.read_csv('csv_dir/train.csv')
-df = pd.DataFrame(columns=['img_id','bbox','query'])
-done_df = pd.DataFrame(columns=['path'])
-img_id = 0
-#done_df  =  pd.read_csv('done.csv')
+df = pd.read_csv('csv_dir/train.csv')
+#df = pd.DataFrame(columns=['img_id','bbox','query'])
+#done_df = pd.DataFrame(columns=['path'])
+#img_id = 0
+done_df  =  pd.read_csv('done.csv')
 #df.to_csv()
 
 
 
 class ExtractImageWidget(object):
-    def __init__(self,img,index,ins,depth_path):
+    def __init__(self,img,index,ins,depth_path,cfg_id):
         self.original_image = img
         self.index = index
         self.depth_path = depth_path
+        self.cfg_id = cfg_id
 
         #self.img_id = img_id 
         self.ins = ins
@@ -85,7 +87,8 @@ class ExtractImageWidget(object):
     def extract_coordinates(self, event, x, y, flags, parameters):
         # Record starting (x,y) coordinates on left mouse button click
         global df
-        global img_id
+        #global img_id
+        global subj_id
         if event == cv2.EVENT_LBUTTONDOWN:
             self.image_coordinates = [(x,y)]
             self.extract = True
@@ -95,10 +98,11 @@ class ExtractImageWidget(object):
             self.image_coordinates.append((x,y))
             self.extract = False
             print('top left: {}, bottom right: {}'.format(self.image_coordinates[0], self.image_coordinates[1]))
-
+            img_id = str(subj_id) +"_"+self.cfg_id+"_"+str(self.index)
             # Draw rectangle around ROI
             cv2.rectangle(self.clone, self.image_coordinates[0], self.image_coordinates[1], (0,255,0), 2)
-            img_path = '{0:06d}'.format(img_id)+".jpg"
+            #img_path = '{0:06d}'.format(img_id)+".jpg"
+            img_path = img_id + ".jpg"
             cv2.imwrite('images/'+img_path,self.original_image)
             bbox = [self.image_coordinates[0][0],self.image_coordinates[0][1],self.image_coordinates[1][0],self.image_coordinates[1][1]]
             df = df.append({'img_id':img_path,'bbox':str(bbox), 'query':self.ins},ignore_index=True)
@@ -106,7 +110,7 @@ class ExtractImageWidget(object):
             os.mkdir("depth/"+str(img_id))
             for file_ in depth_files:
             	copyfile(os.path.join(self.depth_path,file_),"depth/"+str(img_id)+"/"+file_)
-            img_id+=1
+            #img_id+=1
             cv2.imshow('Frame '+str(self.index), self.clone) 
 
         # Clear drawing boxes on right mouse button click
@@ -120,7 +124,7 @@ class ExtractImageWidget(object):
 for part in parts:
     cfg_paths = [dI for dI in os.listdir(part) if os.path.isdir(os.path.join(part,dI))]
     for cfg_path in cfg_paths:
-       
+        #img_id = 0
         vid_path=os.path.join(part,cfg_path)+"/"+cfg_path+".mp4"
         tar_source_path = os.path.join(part,cfg_path)+"/short_throw_depth.tar"
         tar_dest_path = os.path.join(part,cfg_path)+"/short_throw_depth/" 
@@ -129,7 +133,7 @@ for part in parts:
         tar.close()
         depth_paths = [os.path.join(tar_dest_path,dI) for dI in os.listdir(tar_dest_path)]
         depth_paths.sort()
-        print(depth_paths)
+        #print(depth_paths)
         print(vid_path)
         if (len(done_df[done_df['path']==vid_path].index.tolist())!=0):
         	print("Already Annotated!")
@@ -165,7 +169,7 @@ for part in parts:
             # Display the resulting frame
             #cv2.imshow("Frame",frame)
             #img_id +=1 
-            roi_widget = ExtractImageWidget(frame,i,answer,os.path.join(part,cfg_path)+"/short_throw_depth")
+            roi_widget = ExtractImageWidget(frame,i,answer,os.path.join(part,cfg_path)+"/short_throw_depth",cfg_path)
             cv2.imshow('Frame '+str(i), roi_widget.show_image())
             key = cv2.waitKey(0)
             if key == ord('q'):
